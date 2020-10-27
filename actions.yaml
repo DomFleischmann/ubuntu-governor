@@ -1,0 +1,2 @@
+governorevent:
+  description: "Action launched when new governor event needs to be emmited"

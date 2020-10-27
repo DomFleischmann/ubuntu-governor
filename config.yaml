@@ -1,0 +1,19 @@
+options:
+  juju_controller_address:
+    type: string
+    default: ""
+    description: |
+      Address of the Juju controller to use. If empty address will be taken from
+      the JUJU_API_ADDRESSES environment variable
+  juju_controller_user:
+    type: string
+    default: admin
+    description: User to log into the Juju controller
+  juju_controller_password:
+    type: string
+    default: ""
+    description: Password to log into the Juju controller
+  juju_controller_cacert:
+    type: string
+    default: ""
+    description: CA cert needed to log into the Juju controller
