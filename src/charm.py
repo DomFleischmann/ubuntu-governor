@@ -50,6 +50,7 @@ class UbuntuGovernorCharm(GovernorBase):
 
         self._start_governord()
         self.state.is_deployed = True
+        self.model.unit.status = ActiveStatus()
 
     def on_stop(self, event):
         # FIXME destruct deployment
@@ -64,10 +65,7 @@ class UbuntuGovernorCharm(GovernorBase):
         logging.debug("Unit Removed Event called")
 
     def on_config_changed(self, event):
-        if not self.state.is_deployed:
-            event.defer()
-
-        self._try_configure()
+        pass
 
     def _try_deploy(self):
         addr = self.model.config['juju_controller_address']
@@ -121,19 +119,6 @@ class UbuntuGovernorCharm(GovernorBase):
 
         await model.deploy('cs:ubuntu', application_name='ubuntu')
         await self._wait_for_deployment_to_settle(model)
-
-    def _try_configure(self):
-        self.model.unit.status = MaintenanceStatus('Finishing deployment ...')
-
-        try:
-            loop.run(self._configure_ubuntu_governor())
-        except Exception as e:
-            logger.error('Failed to configure Ubuntu Governor: {}'.format(e))
-            return False
-
-        self.model.unit.status = ActiveStatus()
-
-        return True
 
     def _start_governord(self):
         super().start_governord()
