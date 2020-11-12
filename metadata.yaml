@@ -8,8 +8,3 @@ tags:
 - misc
 subordinated: false
 series: [focal]
-resources:
-  governor-broker:
-    type: file 
-    filename: governor-broker.snap
-    description: Governor Broker snap
