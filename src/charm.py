@@ -2,9 +2,6 @@
 #
 # (c) 2020 Canonical Ltd. All right reservered
 #
-
-from juju import loop
-
 from ops.main import main
 from ops.framework import StoredState
 from ops.model import (ActiveStatus, BlockedStatus, MaintenanceStatus,
@@ -36,8 +33,8 @@ class UbuntuGovernorCharm(GovernorBase):
         self.framework.observe(self.on.start, self.on_start)
         self.framework.observe(self.on.stop, self.on_stop)
         self.framework.observe(self.on.config_changed, self.on_config_changed)
-        self.framework.observe(self.geh.on.unitadded, self.on_unitadded)
-        self.framework.observe(self.geh.on.unitremoved, self.on_unitremoved)
+        self.framework.observe(self.geh.on.unit_added, self.on_unit_added)
+        self.framework.observe(self.geh.on.unit_removed, self.on_unit_removed)
 
     def on_install(self, event):
         # FIXME Install and configure governord
@@ -48,7 +45,7 @@ class UbuntuGovernorCharm(GovernorBase):
             event.defer()
             return
 
-        self._start_governord()
+        self.start_governord()
         self.state.is_deployed = True
         self.model.unit.status = ActiveStatus()
 
@@ -56,11 +53,11 @@ class UbuntuGovernorCharm(GovernorBase):
         # FIXME destruct deployment
         pass
 
-    def on_unitadded(self, event):
+    def on_unit_added(self, event):
         self.framework.breakpoint()
         logging.debug("Unit Added Event called")
 
-    def on_unitremoved(self, event):
+    def on_unit_removed(self, event):
         self.framework.breakpoint()
         logging.debug("Unit Removed Event called")
 
@@ -84,7 +81,7 @@ class UbuntuGovernorCharm(GovernorBase):
         self.model.unit.status = MaintenanceStatus("Deploying Ubuntu")
 
         try:
-            loop.run(self._deploy_ubuntu())
+            self._deploy_ubuntu()
         except Exception as e:
             logger.error('Failed to deploy Ubuntu: {}'.format(e))
             return False
@@ -94,38 +91,17 @@ class UbuntuGovernorCharm(GovernorBase):
 
         return True
 
-    async def _wait_for_deployment_to_settle(self, model):
-        try:
-            filtered_apps = []
-            for name in model.applications:
-                if CHARM_NAME == name:
-                    continue
-                filtered_apps.append(model.applications[name])
-            await model.block_until(
-                lambda: all(unit.workload_status == 'active' and
-                            unit.agent_status == 'idle'
-                            for application in filtered_apps
-                            for unit in application.units),
-                timeout=320)
-        except asyncio.TimeoutError:
-            raise ModelError(
-                'Timed out while waiting for deployment to finish')
-
-    @GovernorBase.connected
-    async def _deploy_ubuntu(self, ctrl=None, model=None):
+    def _deploy_ubuntu(self):
         # HACK: Check if we have already run the deployment step
-        if 'ubuntu' in model.applications.keys():
+        if 'ubuntu' in self.juju.model.applications.keys():
             return True
 
-        await model.deploy('cs:ubuntu', application_name='ubuntu')
-        await self._wait_for_deployment_to_settle(model)
+        kwargs = {"entity_url": "cs:ubuntu", "application_name": "ubuntu"}
+        self.juju.deploy(**kwargs)
+        self.juju.wait_for_deployment_to_settle(CHARM_NAME)
 
-    def _start_governord(self):
-        super().start_governord()
-
-    @GovernorBase.connected
-    async def _configure_ubuntu_governor(self, ctrl=None, model=None):
-        await self._wait_for_deployment_to_settle(model)
+    def _configure_ubuntu_governor(self):
+        self.juju.wait_for_deployment_to_settle(CHARM_NAME)
 
 
 if __name__ == "__main__":

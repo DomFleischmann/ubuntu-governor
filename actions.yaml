@@ -1,2 +1,2 @@
-governorevent:
+governor-event:
   description: "Action launched when new governor event needs to be emmited"
