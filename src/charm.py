@@ -33,8 +33,12 @@ class UbuntuGovernorCharm(GovernorBase):
         self.framework.observe(self.on.start, self.on_start)
         self.framework.observe(self.on.stop, self.on_stop)
         self.framework.observe(self.on.config_changed, self.on_config_changed)
-        self.framework.observe(self.geh.on.unit_added, self.on_unit_added)
-        self.framework.observe(self.geh.on.unit_removed, self.on_unit_removed)
+        self.framework.observe(self.on.unit_added,
+                               self.on_unit_added)
+        self.framework.observe(self.on.unit_removed,
+                               self.on_unit_removed)
+        self.framework.observe(self.on.unit_blocked,
+                               self.on_unit_blocked)
 
     def on_install(self, event):
         # FIXME Install and configure governord
@@ -48,6 +52,7 @@ class UbuntuGovernorCharm(GovernorBase):
         self.start_governord()
         self.state.is_deployed = True
         self.model.unit.status = ActiveStatus()
+        logging.warning("cloud type: {}".format(self.juju.get_cloud_type()))
 
     def on_stop(self, event):
         # FIXME destruct deployment
@@ -57,6 +62,10 @@ class UbuntuGovernorCharm(GovernorBase):
         self.framework.breakpoint()
         logging.debug("Unit Added Event called")
 
+    def on_unit_blocked(self, event):
+        self.framework.breakpoint()
+        logging.debug("Unit Blocked Event called")
+
     def on_unit_removed(self, event):
         self.framework.breakpoint()
         logging.debug("Unit Removed Event called")
@@ -65,17 +74,7 @@ class UbuntuGovernorCharm(GovernorBase):
         pass
 
     def _try_deploy(self):
-        addr = self.model.config['juju_controller_address']
-        if len(addr) == 0:
-            addr = os.environ['JUJU_API_ADDRESSES'].split(" ")[0]
-        user = self.model.config['juju_controller_user']
-        password = self.model.config['juju_controller_password']
-        cacert = self.model.config['juju_controller_cacert']
-
-        if (len(addr) == 0 or len(user) == 0 or len(password) == 0 or
-                len(cacert) == 0):
-            self.model.unit.status = BlockedStatus(
-                'Missing Juju controller configuration')
+        if not self.creds_available():
             return False
 
         self.model.unit.status = MaintenanceStatus("Deploying Ubuntu")
